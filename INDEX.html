@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Convite — Sem overlay</title>
+<style>
+  :root { --pause-at: 7.935; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; width: 100%;
+    background:#000; overflow:hidden; touch-action: manipulation;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  }
+  #stage { position: fixed; inset: 0; display: grid; place-items: center; background:#000; }
+  .frame {
+    aspect-ratio: 3 / 4;
+    width: min(75vh, 100vw);
+    max-height: 100vh;
+    background:#000; position: relative; overflow:hidden;
+    box-shadow: 0 10px 40px rgba(0,0,0,.6);
+  }
+  video {
+    position: absolute; inset: 0; width:100%; height:100%;
+    object-fit: contain; background:#000;
+    clip-path: inset(0px 0px 30px 0px); /* corta 30px inferior */
+  }
+  /* PDF fullscreen ao final */
+  #pdfOverlay { position: fixed; inset:0; background:#0b0b0b; display:none; z-index:9999; }
+  #pdfOverlay iframe { position:absolute; inset:0; width:100%; height:100%; border:0; background:#111; }
+  #pdfToolbar { position:absolute; top:10px; right:10px; display:flex; gap:8px; z-index:10000; }
+  .btnOpen {
+    appearance:none; border:none; border-radius:999px; padding:10px 14px; font-weight:700;
+    color:#061018; background:linear-gradient(180deg, #b6e3ff, #6ec6ff);
+    box-shadow:0 8px 20px rgba(110,198,255,.35), inset 0 0 0 1px rgba(0,0,0,0.15);
+    text-decoration:none;
+  }
+  #err { position: fixed; left:10px; bottom:10px; color:#fff; font-size:12px; opacity:.7; }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <div class="frame">
+      <video id="video" playsinline webkit-playsinline preload="auto">
+        <source id="srcmp4" src="video.mp4" type="video/mp4">
+      </video>
+    </div>
+  </div>
+
+  <div id="pdfOverlay" aria-hidden="true">
+    <div id="pdfToolbar">
+      <a class="btnOpen" href="Convite_Ana_Maria.pdf" target="_blank" rel="noopener">Abrir PDF em nova aba</a>
+    </div>
+    <iframe id="pdfFrame" src="Convite_Ana_Maria.pdf#view=FitH&pagemode=none" title="Convite PDF"></iframe>
+  </div>
+
+  <div id="err"></div>
+
+<script>
+const PAUSE_AT = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--pause-at')) || 7.935;
+const video = document.getElementById('video');
+const pdf = document.getElementById('pdfOverlay');
+const err = document.getElementById('err');
+
+let started = false;
+let pausedByCue = false;
+
+function log(m){ if(err) err.textContent = m || ""; }
+
+async function startOrResume(){
+  try{
+    if(!started){
+      // src já está em <source src="video.mp4">
+      video.controls = false;
+      video.muted = false;
+      video.playsInline = true;
+      started = true;
+    }
+    await video.play();
+    log("");
+  }catch(e){
+    try{
+      video.muted = true;
+      await video.play();
+      setTimeout(()=>{ video.muted = false; }, 200);
+      log("Iniciado no modo mudo por compatibilidade; áudio liberado em seguida.");
+    }catch(e2){
+      log("Falha ao iniciar: verifique se 'video.mp4' está em H.264 (AVC) + AAC e na mesma pasta.");
+    }
+  }
+}
+
+video.addEventListener('timeupdate', ()=>{
+  if(!pausedByCue && video.currentTime >= PAUSE_AT){
+    pausedByCue = true;
+    video.pause();
+  }
+});
+
+document.addEventListener('click', startOrResume, {passive:true});
+document.addEventListener('touchend', startOrResume, {passive:true});
+
+video.addEventListener('ended', ()=>{
+  const stage = document.getElementById('stage');
+  if(stage) stage.style.display = 'none';
+  if(pdf) pdf.style.display = 'block';
+});
+
+video.addEventListener('error', ()=> log("Erro de reprodução: formato não suportado."));
+</script>
+</body>
+</html>
